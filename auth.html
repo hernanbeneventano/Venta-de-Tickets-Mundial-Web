@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Copa 26 · Iniciar sesión</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body id="authPage">
+  <header class="topbar">
+    <a class="brand" href="index.html">
+      <span class="brand__mark">26</span>
+      <span class="brand__name">COPA <em>MUNDIAL</em></span>
+    </a>
+  </header>
+
+  <main>
+    <section class="view is-active" id="view-auth">
+      <div class="auth-shell">
+        <div class="auth-card">
+          <div class="auth-card__top">
+            <span class="eyebrow">Acceso</span>
+            <h2 class="section-title">Ingresá para comprar</h2>
+            <p class="auth-card__copy">Creá tu cuenta para asociar tus compras y ver tus entradas desde cualquier dispositivo.</p>
+          </div>
+
+          <div class="auth-tabs" role="tablist">
+            <button class="auth-tab is-active" data-auth-tab="login" type="button">Iniciar sesión</button>
+            <button class="auth-tab" data-auth-tab="register" type="button">Registrarme</button>
+          </div>
+
+          <div id="authGuest">
+            <div class="auth-error" id="authError" hidden></div>
+            <form id="loginForm" class="auth-form is-active">
+              <label class="field">
+                <span class="field__label">Email</span>
+                <input class="field__input" type="email" id="loginEmail" required />
+              </label>
+              <label class="field">
+                <span class="field__label">Contraseña</span>
+                <input class="field__input" type="password" id="loginPassword" required />
+              </label>
+              <button class="btn btn--field" type="submit">Ingresar</button>
+            </form>
+
+            <form id="registerForm" class="auth-form">
+              <label class="field">
+                <span class="field__label">Nombre</span>
+                <input class="field__input" type="text" id="registerName" required />
+              </label>
+              <label class="field">
+                <span class="field__label">Email</span>
+                <input class="field__input" type="email" id="registerEmail" required />
+              </label>
+              <label class="field">
+                <span class="field__label">Contraseña</span>
+                <input class="field__input" type="password" id="registerPassword" required />
+              </label>
+              <button class="btn btn--field" type="submit">Crear cuenta</button>
+            </form>
+          </div>
+
+          <div id="authLoggedIn" class="auth-logged" hidden>
+            <div class="auth-user">
+              <div class="auth-user__avatar" id="authUserInitial">U</div>
+              <div>
+                <h3 id="authUserName">Usuario</h3>
+                <p id="authUserEmail">email@example.com</p>
+              </div>
+            </div>
+            <button class="btn btn--ghost" id="logoutBtn" type="button">Cerrar sesión</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>Copa 26 · Sistema de entradas</span>
+    <span class="muted">Demostración de frontend · datos de ejemplo</span>
+  </footer>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="js/data.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

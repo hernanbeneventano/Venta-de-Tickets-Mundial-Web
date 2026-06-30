@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Copa 26 · Entradas</title>
+
+  <!-- Tipografías -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ===================== NAV ===================== -->
+  <header class="topbar">
+    <a class="brand" href="#" data-view="partidos">
+      <img class="brand__logo" src="img/fifa-2026-logo.svg" alt="Logo oficial de la FIFA Copa del Mundo 2026" />
+      <span class="brand__text">
+        <span class="brand__name">Venta de <em>Tickets</em></span>
+        <span class="brand__subtitle">Copa Mundial 2026</span>
+      </span>
+    </a>
+
+    <nav class="nav" id="nav">
+      <button class="nav__link is-active" data-view="partidos">Partidos</button>
+      <button class="nav__link" data-view="comprar">Comprar</button>
+      <button class="nav__link" data-view="entradas">
+        Mis entradas
+        <span class="nav__count" id="navCount" hidden>0</span>
+      </button>
+      <button class="nav__link" data-view="horarios">Horarios</button>
+    </nav>
+
+    <div class="account-menu">
+      <button class="account-button" id="accountButton" type="button" aria-label="Abrir menú de cuenta">
+        <span class="account-button__initial" id="accountInitial">U</span>
+      </button>
+      <div class="account-menu__panel" id="accountMenu" hidden>
+        <div class="account-menu__user">
+          <div class="account-menu__avatar" id="accountMenuAvatar">U</div>
+          <div>
+            <strong id="accountMenuName">Usuario</strong>
+            <p id="accountMenuEmail">Iniciá sesión</p>
+          </div>
+        </div>
+        <button class="account-menu__action" id="accountMenuAction" type="button">Iniciar sesión</button>
+        <button class="account-menu__logout" id="logoutBtn" type="button" hidden>Cerrar sesión</button>
+      </div>
+    </div>
+
+    <button class="nav__toggle" id="navToggle" aria-label="Abrir menú">☰</button>
+  </header>
+
+  <main>
+
+    <!-- ===================== VISTA: PARTIDOS ===================== -->
+    <section class="view is-active" id="view-partidos">
+      <div class="hero">
+        <div class="hero__copy">
+          <span class="eyebrow">Partido destacado · Fase de grupos</span>
+          <h1 class="hero__title" id="heroTitle">Cargando…</h1>
+          <p class="hero__meta" id="heroMeta"></p>
+          <button class="btn btn--solar" id="heroBtn">Comprar entradas</button>
+        </div>
+        <div class="hero__ticket" id="heroTicket"><!-- ticket destacado --></div>
+      </div>
+
+      <div class="section-head">
+        <h2 class="section-title">Todos los partidos</h2>
+        <div class="chips" id="grupoChips"><!-- filtros por grupo --></div>
+      </div>
+
+      <div class="match-grid" id="matchGrid"><!-- tarjetas de partidos --></div>
+    </section>
+
+    <!-- ===================== VISTA: COMPRAR ===================== -->
+    <section class="view" id="view-comprar">
+      <div class="buy">
+        <div class="buy__main">
+          <span class="eyebrow">Compra de entradas</span>
+          <h2 class="section-title">Elegí tu partido</h2>
+
+          <label class="field">
+            <span class="field__label">Partido</span>
+            <select class="field__input" id="buyMatch"></select>
+          </label>
+
+          <h3 class="buy__subtitle">Categoría de tribuna</h3>
+          <div class="cats" id="buyCats"><!-- categorías --></div>
+
+          <h3 class="buy__subtitle">Cantidad de entradas</h3>
+          <div class="stepper">
+            <button class="stepper__btn" id="qtyMinus" aria-label="Quitar una">−</button>
+            <span class="stepper__value" id="qtyValue">1</span>
+            <button class="stepper__btn" id="qtyPlus" aria-label="Agregar una">+</button>
+            <span class="stepper__hint">máx. 6 por compra</span>
+          </div>
+
+          <div class="payment" id="buyPaymentSection">
+            <h3 class="buy__subtitle">Método de pago</h3>
+            <div class="payment__methods">
+              <label class="payment-option">
+                <input type="radio" name="paymentMethod" value="Tarjeta de Crédito" checked />
+                <span>Tarjeta de Crédito</span>
+              </label>
+              <label class="payment-option">
+                <input type="radio" name="paymentMethod" value="Billetera virtual" />
+                <span>Billetera virtual</span>
+              </label>
+            </div>
+
+            <div class="payment__details">
+              <div class="payment-method-group" id="cardFields" data-payment-group="card">
+                <div class="field">
+                  <label class="field__label">Número de tarjeta</label>
+                  <input class="field__input" type="text" id="cardNumber" inputmode="numeric" maxlength="19" placeholder="0000 0000 0000 0000" autocomplete="cc-number" />
+                </div>
+                <div class="field">
+                  <label class="field__label">Titular de la tarjeta</label>
+                  <input class="field__input" type="text" id="cardHolder" placeholder="Nombre completo" autocomplete="cc-name" />
+                </div>
+                <div class="field">
+                  <label class="field__label">CVV</label>
+                  <input class="field__input" type="text" id="cardCvv" inputmode="numeric" maxlength="4" placeholder="123" autocomplete="cc-csc" />
+                </div>
+                <div class="field">
+                  <label class="field__label">Fecha de vencimiento</label>
+                  <input class="field__input" type="text" id="cardExpiry" inputmode="numeric" maxlength="5" placeholder="MM/AA" autocomplete="cc-exp" />
+                </div>
+              </div>
+
+              <div class="payment-method-group" id="walletFields" data-payment-group="wallet" hidden>
+                <div class="field">
+                  <label class="field__label">Alias o CVU</label>
+                  <input class="field__input" type="text" id="walletAlias" placeholder="usuario.123 / 0000000000" autocomplete="on" />
+                  <p class="field__hint">Solo letras, números y puntos.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="auth-error payment-error" id="buyPaymentError" hidden></div>
+          </div>
+        </div>
+
+        <!-- Resumen -->
+        <aside class="summary">
+          <h3 class="summary__title">Resumen</h3>
+          <div class="summary__row"><span>Partido</span><b id="sumMatch">—</b></div>
+          <div class="summary__row"><span>Categoría</span><b id="sumCat">—</b></div>
+          <div class="summary__row"><span>Entradas</span><b id="sumQty">1</b></div>
+          <div class="summary__row"><span>Método de pago</span><b id="sumPayment">Tarjeta de Crédito</b></div>
+          <div class="summary__row summary__row--service"><span>Cargo de servicio</span><b id="sumFee">$0</b></div>
+          <div class="summary__total"><span>Total</span><b id="sumTotal">$0</b></div>
+          <button class="btn btn--field summary__cta" id="buyConfirm">Confirmar compra</button>
+          <p class="summary__note">Precios en USD. Demostración sin pago real.</p>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ===================== VISTA: MIS ENTRADAS ===================== -->
+    <section class="view" id="view-entradas">
+      <div class="section-head">
+        <h2 class="section-title">Mis entradas</h2>
+        <span class="muted" id="entradasCount"></span>
+      </div>
+      <div class="tickets" id="ticketsWrap"><!-- entradas compradas --></div>
+      <div class="empty" id="ticketsEmpty">
+        <div class="empty__icon">🎟️</div>
+        <h3>Todavía no tenés entradas</h3>
+        <p>Cuando compres, tus entradas con código QR aparecen acá.</p>
+        <button class="btn btn--field" data-view="comprar">Comprar ahora</button>
+      </div>
+    </section>
+
+    <!-- ===================== VISTA: HORARIOS ===================== -->
+    <section class="view" id="view-horarios">
+      <div class="section-head">
+        <h2 class="section-title">Horarios</h2>
+        <span class="muted">Hora local de cada sede</span>
+      </div>
+      <div class="agenda" id="agenda"><!-- agenda por día --></div>
+    </section>
+
+  </main>
+
+  <footer class="foot">
+    <span>Copa 26 · Sistema de entradas</span>
+    <span class="muted">Demostración de frontend · datos de ejemplo</span>
+  </footer>
+
+  <!-- Aviso flotante -->
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="js/data.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
