@@ -70,6 +70,37 @@
 
       <div class="section-head">
         <h2 class="section-title">Todos los partidos</h2>
+        <div class="filters" id="matchFilters">
+          <div class="filters__bar">
+            <label class="field filter-field filter-expanded">
+              <span class="field__label">Buscar partido</span>
+              <input class="field__input" type="search" id="matchSearch" placeholder="Equipo, estadio, grupo..." autocomplete="off" />
+            </label>
+            <div class="filter-actions">
+              <button class="btn btn--ghost btn--sm" id="toggleAdvancedFilters" type="button" aria-expanded="false">
+                Filtros avanzados <span class="filter-panel-toggle__icon">+</span>
+              </button>
+              <button class="btn btn--ghost btn--sm" id="clearFilters" type="button">Limpiar filtros</button>
+            </div>
+          </div>
+          <label class="field filter-field filter-inline">
+            <input type="checkbox" id="showFinished" checked />
+            <span class="filter__label">Mostrar partidos finalizados</span>
+          </label>
+          <div class="filter-panel" id="filterPanel" hidden>
+            <div class="filter-panel__header">
+              <div class="filter-panel__title">Filtros avanzados</div>
+            </div>
+            <div class="filter-section">
+              <div class="filter-section__title">Grupos</div>
+              <div class="filter-options" id="groupFilterOptions"></div>
+            </div>
+            <div class="filter-section">
+              <div class="filter-section__title">Ciudades</div>
+              <div class="filter-options" id="cityFilterOptions"></div>
+            </div>
+          </div>
+        </div>
         <div class="chips" id="grupoChips"><!-- filtros por grupo --></div>
       </div>
 

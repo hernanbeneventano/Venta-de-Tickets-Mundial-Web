@@ -10,6 +10,12 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
 // ---------- Estado ----------
 let MIS_ENTRADAS = [];          // entradas compradas
 let filtroGrupo = "TODOS";      // filtro de la lista de partidos
+let searchQuery = "";           // búsqueda libre de partidos
+let showFinished = true;         // incluye partidos finalizados en la lista
+let selectedGroups = new Set();
+let selectedCities = new Set();
+let advancedFiltersOpen = false;
+let matchFiltersInitialized = false;
 const API_BASE_URL = (window.API_BASE_URL || "https://mundialapi-zbsj.onrender.com/api").replace(/\/$/, "");
 let currentUser = null;
 let userId = "guest";
@@ -99,6 +105,20 @@ function fechaLarga(iso) {
 }
 function getMatch(id) { return PARTIDOS.find((m) => m.id === id); }
 function getCat(id)   { return CATEGORIAS.find((c) => c.id === id); }
+
+function getUniqueSorted(values) {
+  return [...new Set(values.filter(Boolean))].sort((a, b) =>
+    a.toString().localeCompare(b.toString(), "es", { sensitivity: "base", numeric: true })
+  );
+}
+
+function labelForStatus(status) {
+  if (!status) return "";
+  return status
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function precioDesde(){ return Math.min(...CATEGORIAS.map((c) => c.precio)); }
 
 function logoutCurrentUser() {
@@ -333,7 +353,7 @@ function ticketHTML(m, { cat, asiento, codigo } = {}) {
 //  VISTA: PARTIDOS
 // ============================================================
 function renderHero() {
-  const m = PARTIDOS.find((p) => p.destacado) || PARTIDOS[0];
+  const m = PARTIDOS.find((p) => p.destacado) || PARTIDOS.find((p) => p.estado !== "finalizado") || PARTIDOS[0];
   if (!m) {
     $("#heroTitle").textContent = "No hay partidos disponibles";
     $("#heroMeta").textContent = "Por favor, verifica la base de datos o la conexión.";
@@ -383,7 +403,7 @@ function renderChips() {
 }
 
 function renderMatches() {
-  const lista = PARTIDOS.filter((m) => filtroGrupo === "TODOS" || m.grupo === filtroGrupo);
+  const lista = PARTIDOS.filter(filterMatch);
   $("#matchGrid").innerHTML = lista.map((m) => {
     const f = fecha(m.fecha);
     const isFinalizado = m.estado === "finalizado";
@@ -435,6 +455,12 @@ function renderMatches() {
 //  VISTA: COMPRAR
 // ============================================================
 function abrirCompra(matchId) {
+  const match = getMatch(matchId);
+  if (!match || match.estado === "finalizado") {
+    toast("No se puede comprar un partido finalizado.");
+    return;
+  }
+
   compra.matchId = matchId;
   compra.qty = 1;
   $("#buyMatch").value = matchId;
@@ -445,12 +471,148 @@ function abrirCompra(matchId) {
 
 function renderMatchSelect() {
   const select = $("#buyMatch");
-  select.innerHTML = PARTIDOS.map((m) => {
+  const availableMatches = PARTIDOS.filter((m) => m.estado !== "finalizado");
+
+  if (availableMatches.length === 0) {
+    select.innerHTML = `<option value="">No hay partidos disponibles</option>`;
+    select.disabled = true;
+    compra.matchId = "";
+    renderResumen();
+    return;
+  }
+
+  if (!availableMatches.some((m) => m.id === compra.matchId)) {
+    compra.matchId = availableMatches[0].id;
+  }
+
+  select.disabled = false;
+  select.innerHTML = availableMatches.map((m) => {
     const f = fecha(m.fecha);
     return `<option value="${m.id}">${m.local} vs ${m.visita} · ${f.dia} ${f.mes} ${m.hora}h</option>`;
   }).join("");
   select.value = compra.matchId;
   select.onchange = (e) => { compra.matchId = e.target.value; renderResumen(); };
+}
+
+function renderAdvancedFilters() {
+  const groups = getUniqueSorted(PARTIDOS.map((m) => m.grupo));
+  const cities = getUniqueSorted(PARTIDOS.map((m) => m.ciudad));
+
+  const groupOptions = groups.map((group) => `
+    <label class="filter-option">
+      <input type="checkbox" data-filter-type="group" value="${group}" ${selectedGroups.has(group) ? "checked" : ""} />
+      <span>${group}</span>
+    </label>
+  `).join("");
+
+  const cityOptions = cities.map((city) => `
+    <label class="filter-option">
+      <input type="checkbox" data-filter-type="city" value="${city}" ${selectedCities.has(city) ? "checked" : ""} />
+      <span>${city}</span>
+    </label>
+  `).join("");
+
+  const groupContainer = $("#groupFilterOptions");
+  const cityContainer = $("#cityFilterOptions");
+
+  if (groupContainer) groupContainer.innerHTML = groupOptions || "<p class=\"filter-empty\">No hay grupos</p>";
+  if (cityContainer) cityContainer.innerHTML = cityOptions || "<p class=\"filter-empty\">No hay ciudades</p>";
+
+  const filterInputs = $$("#filterPanel input[type='checkbox'][data-filter-type]");
+  filterInputs.forEach((input) => {
+    input.addEventListener("change", (event) => {
+      const type = event.target.dataset.filterType;
+      const value = event.target.value;
+      const set = type === "group" ? selectedGroups : selectedCities;
+      if (event.target.checked) {
+        set.add(value);
+      } else {
+        set.delete(value);
+      }
+      renderMatches();
+    });
+  });
+}
+
+function updateFilterPanelToggle() {
+  const panel = $("#filterPanel");
+  const toggleBtn = $("#toggleAdvancedFilters");
+  if (panel) panel.hidden = !advancedFiltersOpen;
+  if (toggleBtn) {
+    toggleBtn.setAttribute("aria-expanded", advancedFiltersOpen ? "true" : "false");
+    const icon = toggleBtn.querySelector(".filter-panel-toggle__icon");
+    if (icon) icon.textContent = advancedFiltersOpen ? "−" : "+";
+  }
+}
+
+function clearMatchFilters() {
+  selectedGroups.clear();
+  selectedCities.clear();
+  searchQuery = "";
+  filtroGrupo = "TODOS";
+  showFinished = true;
+
+  const searchInput = $("#matchSearch");
+  const finishedToggle = $("#showFinished");
+  if (searchInput) searchInput.value = "";
+  if (finishedToggle) finishedToggle.checked = true;
+  if (advancedFiltersOpen === false) {
+    advancedFiltersOpen = true;
+  }
+  updateFilterPanelToggle();
+  renderChips();
+  renderAdvancedFilters();
+  renderMatches();
+}
+
+function attachMatchFilters() {
+  const searchInput = $("#matchSearch");
+  const finishedToggle = $("#showFinished");
+  const toggleBtn = $("#toggleAdvancedFilters");
+  const clearBtn = $("#clearFilters");
+
+  if (searchInput) {
+    searchInput.value = searchQuery;
+    searchInput.addEventListener("input", (event) => {
+      searchQuery = event.target.value.trim();
+      renderMatches();
+    });
+  }
+
+  if (finishedToggle) {
+    finishedToggle.checked = showFinished;
+    finishedToggle.addEventListener("change", (event) => {
+      showFinished = event.target.checked;
+      renderMatches();
+    });
+  }
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      advancedFiltersOpen = !advancedFiltersOpen;
+      updateFilterPanelToggle();
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener("click", clearMatchFilters);
+  }
+
+  updateFilterPanelToggle();
+  renderAdvancedFilters();
+}
+
+function filterMatch(m) {
+  if (!showFinished && m.estado === "finalizado") return false;
+  if (filtroGrupo !== "TODOS" && m.grupo !== filtroGrupo) return false;
+  if (selectedGroups.size > 0 && !selectedGroups.has(m.grupo)) return false;
+  if (selectedCities.size > 0 && !selectedCities.has(m.ciudad)) return false;
+  if (!searchQuery) return true;
+
+  const term = searchQuery.toLowerCase();
+  return [m.local, m.visita, m.estadio, m.grupo, m.resultado, m.ciudad]
+    .filter(Boolean)
+    .some((value) => value.toString().toLowerCase().includes(term));
 }
 
 function renderCats() {
@@ -686,6 +848,11 @@ if (buyConfirm) {
     const payment = buildPaymentPayload();
 
     try {
+      if (!m || m.estado === "finalizado") {
+        toast("No se puede comprar un partido que ya finalizó.");
+        return;
+      }
+
       const payload = {
         userId,
         partidoId: m.id,
@@ -866,27 +1033,26 @@ function renderApp() {
     irA("partidos");
   }
 
-  if (!currentUser) {
-    renderHero();
-    renderChips();
-    renderMatches();
-    renderResumen();
-    renderEntradas();
-    renderAgenda();
-    actualizarContador();
-    return;
-  }
-
   renderHero();
   renderChips();
   renderMatches();
-  renderMatchSelect();
-  renderCats();
-  renderPaymentForm();
   renderResumen();
   renderEntradas();
   renderAgenda();
   actualizarContador();
+
+  if (!matchFiltersInitialized) {
+    attachMatchFilters();
+    matchFiltersInitialized = true;
+  }
+
+  if (!currentUser) {
+    return;
+  }
+
+  renderMatchSelect();
+  renderCats();
+  renderPaymentForm();
 }
 
 function formatFirebaseAuthError(error) {
