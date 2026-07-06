@@ -254,7 +254,8 @@ main { max-width: var(--maxw); margin: 0 auto; padding: clamp(24px, 5vw, 56px) c
 }
 .card__date { font: 600 .78rem "JetBrains Mono"; color: var(--muted); }
 .card__teams { display: flex; flex-direction: column; gap: 10px; }
-.team { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 1.05rem; min-width: 0; }
+.team { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 600; font-size: 1.05rem; min-width: 0; }
+.team__score { font-family: "JetBrains Mono", monospace; font-weight: 700; color: var(--field-d); background: #e7f6ee; padding: 2px 8px; border-radius: 6px; font-size: 1.1rem; }
 .team__name { overflow-wrap: anywhere; }
 .team .flag { font-size: 1.5rem; width: 24px; height: 16px; object-fit: cover; border-radius: 4px; flex-shrink: 0; display: block; }
 .flag--text { display: inline-grid; place-items: center; font-size: .9rem; font-weight: 700; background: var(--mist); color: var(--ink); width: 24px; height: 16px; border-radius: 4px; }

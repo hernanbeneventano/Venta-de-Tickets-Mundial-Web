@@ -36,9 +36,14 @@ async function initializeAuthPersistence() {
 }
 
 void initializeAuthPersistence();
+
+if (typeof PARTIDOS !== "undefined" && PARTIDOS.length > 0 && !PARTIDOS[0].local) {
+  PARTIDOS.splice(0, PARTIDOS.length, ...PARTIDOS.map(mapPartidoApi));
+}
+
 const compra = {                // selección actual en la vista Comprar
-  matchId: PARTIDOS[0].id,
-  catId: CATEGORIAS[1].id,
+  matchId: PARTIDOS[0] ? PARTIDOS[0].id : "",
+  catId: CATEGORIAS[1] ? CATEGORIAS[1].id : "",
   qty: 1,
 };
 const pago = {
@@ -160,6 +165,10 @@ function mapPartidoApi(p) {
     ciudad,
     destacado: false,
     precio: Number(p.precio) || 0,
+    resultado: p.resultado || null,
+    goles1: p.goles1 !== undefined && p.goles1 !== null ? Number(p.goles1) : null,
+    goles2: p.goles2 !== undefined && p.goles2 !== null ? Number(p.goles2) : null,
+    estado: p.estado || "pendiente",
   };
 }
 
@@ -199,8 +208,12 @@ async function cargarDatosDesdeApi() {
   try {
     const partidosApi = await apiFetch("/partidos");
     const partidos = Array.isArray(partidosApi) ? partidosApi : [];
-    PARTIDOS.splice(0, PARTIDOS.length, ...partidos.map(mapPartidoApi));
-    CATEGORIAS.splice(0, CATEGORIAS.length, ...mapCategoriasDesdePartidos());
+    if (partidos.length > 0) {
+      PARTIDOS.splice(0, PARTIDOS.length, ...partidos.map(mapPartidoApi));
+      CATEGORIAS.splice(0, CATEGORIAS.length, ...mapCategoriasDesdePartidos());
+    } else {
+      console.warn("La API retornó una lista vacía de partidos. Se mantendrán los datos locales de respaldo.");
+    }
 
     if (!PARTIDOS.some((m) => m.id === compra.matchId) && PARTIDOS.length) {
       compra.matchId = PARTIDOS[0].id;
@@ -289,12 +302,13 @@ function renderFlag(flagUrl, altText) {
 
 function ticketHTML(m, { cat, asiento, codigo } = {}) {
   const f = fecha(m.fecha);
+  const isFinalizado = m.estado === "finalizado";
   return `
   <div class="ticket-stub">
     <div class="ticket-stub__main">
       <div class="ticket-stub__teams">
         ${renderFlag(m.localFlag, m.local)}
-        <span class="ticket-stub__vs">VS</span>
+        <span class="ticket-stub__vs">${isFinalizado ? `${m.goles1} — ${m.goles2}` : "VS"}</span>
         ${renderFlag(m.visitaFlag, m.visita)}
       </div>
       <div class="ticket-stub__match">${m.local} — ${m.visita}</div>
@@ -320,10 +334,42 @@ function ticketHTML(m, { cat, asiento, codigo } = {}) {
 // ============================================================
 function renderHero() {
   const m = PARTIDOS.find((p) => p.destacado) || PARTIDOS[0];
-  $("#heroTitle").textContent = `${m.local} vs ${m.visita}`;
+  if (!m) {
+    $("#heroTitle").textContent = "No hay partidos disponibles";
+    $("#heroMeta").textContent = "Por favor, verifica la base de datos o la conexión.";
+    $("#heroTicket").innerHTML = "";
+    const heroBtn = $("#heroBtn");
+    if (heroBtn) {
+      heroBtn.textContent = "Comprar entradas";
+      heroBtn.disabled = true;
+      heroBtn.style.opacity = "0.6";
+      heroBtn.style.cursor = "not-allowed";
+      heroBtn.onclick = null;
+    }
+    return;
+  }
+  
+  const isFinalizado = m.estado === "finalizado";
+  $("#heroTitle").textContent = isFinalizado ? `${m.local} (${m.goles1}) vs (${m.goles2}) ${m.visita}` : `${m.local} vs ${m.visita}`;
   $("#heroMeta").textContent = `${fechaLarga(m.fecha)} · ${m.hora} h · ${m.estadio}, ${m.ciudad}`;
   $("#heroTicket").innerHTML = ticketHTML(m, { cat: getCat("cat1") });
-  $("#heroBtn").onclick = () => abrirCompra(m.id);
+  
+  const heroBtn = $("#heroBtn");
+  if (heroBtn) {
+    if (isFinalizado) {
+      heroBtn.textContent = "Partido Finalizado";
+      heroBtn.disabled = true;
+      heroBtn.style.opacity = "0.6";
+      heroBtn.style.cursor = "not-allowed";
+      heroBtn.onclick = null;
+    } else {
+      heroBtn.textContent = "Comprar entradas";
+      heroBtn.disabled = false;
+      heroBtn.style.opacity = "";
+      heroBtn.style.cursor = "";
+      heroBtn.onclick = () => abrirCompra(m.id);
+    }
+  }
 }
 
 function renderChips() {
@@ -340,21 +386,42 @@ function renderMatches() {
   const lista = PARTIDOS.filter((m) => filtroGrupo === "TODOS" || m.grupo === filtroGrupo);
   $("#matchGrid").innerHTML = lista.map((m) => {
     const f = fecha(m.fecha);
+    const isFinalizado = m.estado === "finalizado";
     return `
     <article class="card">
       <div class="card__top">
-        <span class="tag">Grupo ${m.grupo}</span>
+        <span class="tag ${isFinalizado ? "tag--finalizado" : ""}" style="${isFinalizado ? "background: var(--mist); color: var(--muted);" : ""}">${isFinalizado ? "Finalizado" : "Grupo " + m.grupo}</span>
         <span class="card__date">${f.dia} ${f.mes.toUpperCase()} · ${m.hora}</span>
       </div>
       <div class="card__teams">
-        <div class="team">${renderFlag(m.localFlag, m.local)} <span class="team__name">${m.local}</span></div>
-        <div class="card__sep">VS</div>
-        <div class="team">${renderFlag(m.visitaFlag, m.visita)} <span class="team__name">${m.visita}</span></div>
+        <div class="team">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+            ${renderFlag(m.localFlag, m.local)}
+            <span class="team__name" style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${m.local}</span>
+          </div>
+          ${isFinalizado ? `<span class="team__score">${m.goles1}</span>` : ""}
+        </div>
+        <div class="card__sep" style="${isFinalizado ? "color: var(--field-d); font-weight: bold;" : ""}">${isFinalizado ? "FT" : "VS"}</div>
+        <div class="team">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+            ${renderFlag(m.visitaFlag, m.visita)}
+            <span class="team__name" style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${m.visita}</span>
+          </div>
+          ${isFinalizado ? `<span class="team__score">${m.goles2}</span>` : ""}
+        </div>
       </div>
       <div class="card__venue">📍 ${m.estadio}, ${m.ciudad}</div>
       <div class="card__foot">
-        <div class="card__price"><span>desde</span><b>${money(precioDesde())}</b></div>
-        <button class="btn btn--field" data-buy="${m.id}">Comprar</button>
+        ${isFinalizado 
+          ? `
+            <div class="card__price"><span style="font-family: 'JetBrains Mono'; font-weight: 700; color: var(--muted);">RESULTADO</span></div>
+            <button class="btn btn--muted" disabled style="opacity: 0.6; cursor: not-allowed; background: var(--mist); color: var(--muted); border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600;">Finalizado</button>
+          `
+          : `
+            <div class="card__price"><span>desde</span><b>${money(precioDesde())}</b></div>
+            <button class="btn btn--field" data-buy="${m.id}">Comprar</button>
+          `
+        }
       </div>
     </article>`;
   }).join("");
@@ -401,6 +468,16 @@ function renderCats() {
 function renderResumen() {
   const m = getMatch(compra.matchId);
   const c = getCat(compra.catId);
+  if (!m || !c) {
+    $("#qtyValue").textContent = compra.qty;
+    $("#sumMatch").textContent = "No seleccionado";
+    $("#sumCat").textContent = "-";
+    $("#sumQty").textContent = compra.qty;
+    $("#sumFee").textContent = money(0);
+    $("#sumPayment").textContent = pago.metodo;
+    $("#sumTotal").textContent = money(0);
+    return;
+  }
   const sub = c.precio * compra.qty;
   const fee = CARGO_SERVICIO * compra.qty;
   $("#qtyValue").textContent = compra.qty;
