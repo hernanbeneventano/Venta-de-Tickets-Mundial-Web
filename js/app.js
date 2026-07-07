@@ -1227,7 +1227,12 @@ function renderAuthView() {
     if (logged) logged.hidden = true;
     if (loginForm) loginForm.classList.add("is-active");
     if (registerForm) registerForm.classList.remove("is-active");
-    stopQrLogin(); // Nos aseguramos de ocultar el panel QR si no estamos logueados y volvemos a la vista auth
+
+    // Solo detenemos el QR si el panel NO está visible actualmente
+    const qrPanel = $("#qrPanel");
+    if (qrPanel && (qrPanel.hidden || qrPanel.classList.contains("hidden"))) {
+      stopQrLogin();
+    }
   }
 
   renderAccountButton();
