@@ -305,7 +305,6 @@ async function cargarDatosDesdeApi(append = false) {
     }
 
     partidosCurrentPage++;
-    renderApp();
 
     if (!append) {
       await cargarMisEntradasDesdeApi();
@@ -315,6 +314,7 @@ async function cargarDatosDesdeApi(append = false) {
     toast("Error al cargar datos desde la API.");
   } finally {
     isLoadingPartidos = false;
+    renderApp();
   }
 }
 
