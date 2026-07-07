@@ -404,11 +404,11 @@ function renderFlag(flagUrl, altText) {
   return `<img class="flag flag--img" src="${flagUrl}" alt="${altText}" loading="lazy" />`;
 }
 
-function ticketHTML(m, { cat, asiento, codigo } = {}) {
+function ticketHTML(m, { cat, asiento, codigo, ticketId } = {}) {
   const f = fecha(m.fecha);
   const isFinalizado = m.estado === "finalizado";
   return `
-  <div class="ticket-stub">
+  <div class="ticket-stub" id="ticket-${ticketId || ''}">
     <div class="ticket-stub__main">
       <div class="ticket-stub__teams">
         ${renderFlag(m.localFlag, m.local)}
@@ -424,6 +424,11 @@ function ticketHTML(m, { cat, asiento, codigo } = {}) {
       </div>
     </div>
     <div class="ticket-stub__tear">
+      ${ticketId ? `
+        <button class="ticket-stub__delete" onclick="eliminarEntrada('${ticketId}')" title="Cancelar entrada">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+        </button>
+      ` : ''}
       ${qrSVG()}
       <div class="ticket-stub__seat">
         ${asiento ? `<b>${asiento}</b>ASIENTO` : `<b>${formatearGrupo(m.grupo)}</b>`}
@@ -432,6 +437,19 @@ function ticketHTML(m, { cat, asiento, codigo } = {}) {
     </div>
   </div>`;
 }
+
+window.eliminarEntrada = async function(id) {
+  if (!confirm("¿Estás seguro de que deseas cancelar esta entrada? Esta acción no se puede deshacer.")) return;
+
+  try {
+    await apiFetch(`/compras/${id}`, { method: "DELETE" });
+    toast("Entrada cancelada con éxito.");
+    await cargarMisEntradasDesdeApi();
+  } catch (error) {
+    console.error("Error al eliminar entrada:", error);
+    toast("No se pudo cancelar la entrada.");
+  }
+};
 
 // ============================================================
 //  VISTA: PARTIDOS
@@ -1088,7 +1106,7 @@ function renderEntradas() {
   empty.style.display = "none";
   $("#entradasCount").textContent = `${MIS_ENTRADAS.length} entrada${MIS_ENTRADAS.length > 1 ? "s" : ""}`;
   wrap.innerHTML = MIS_ENTRADAS
-    .map((t) => ticketHTML(t.match, { cat: t.cat, asiento: t.asiento, codigo: t.codigo }))
+    .map((t) => ticketHTML(t.match, { cat: t.cat, asiento: t.asiento, codigo: t.codigo, ticketId: t.id }))
     .join("");
 }
 
