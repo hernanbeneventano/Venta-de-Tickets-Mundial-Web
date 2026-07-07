@@ -1229,8 +1229,11 @@ function renderAuthView() {
     if (registerForm) registerForm.classList.remove("is-active");
 
     // Solo detenemos el QR si el panel NO está visible actualmente
+    // y además hay una suscripción activa. Evita que un render
+    // provocado por cambios de auth en otra pestaña cierre el QR
+    // que está activo en esta pestaña.
     const qrPanel = $("#qrPanel");
-    if (qrPanel && (qrPanel.hidden || qrPanel.classList.contains("hidden"))) {
+    if (qrPanel && (qrPanel.hidden || qrPanel.classList.contains("hidden")) && qrUnsubscribe) {
       stopQrLogin();
     }
   }
