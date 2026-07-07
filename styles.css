@@ -34,6 +34,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+body.is-modal-open {
+  overflow: hidden;
+}
+
 .muted { color: var(--muted); font-size: .9rem; }
 .eyebrow {
   display: inline-block;
@@ -569,8 +573,103 @@ main { max-width: var(--maxw); margin: 0 auto; padding: clamp(24px, 5vw, 56px) c
 .slot__time { font: 700 1.05rem "JetBrains Mono"; }
 .slot__time span { display: block; font: 600 .64rem "JetBrains Mono"; color: var(--muted); }
 .slot__match { font-weight: 600; }
-.slot__match small { display: block; color: var(--muted); font-weight: 400; font-size: .82rem; }
 .slot__grupo { font: 700 .72rem "JetBrains Mono"; color: var(--field-d); background: #e7f6ee; padding: 5px 10px; border-radius: 6px; }
+
+/* ============================================================
+   MODAL DE CONFIRMACIÓN
+   ============================================================ */
+.confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow-y: auto;
+}
+.confirm-modal[hidden] {
+  display: none;
+}
+.confirm-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 16, 35, 0.78);
+  backdrop-filter: blur(6px);
+}
+.confirm-modal__card {
+  position: relative;
+  width: min(100%, 560px);
+  max-width: 100%;
+  background: var(--surface);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+  padding: 28px;
+  z-index: 1;
+  margin: auto;
+}
+.confirm-modal__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: #f2f4f7;
+  color: var(--ink);
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+.confirm-modal__header {
+  margin-bottom: 20px;
+}
+.confirm-modal__title {
+  font: 400 1.7rem "Anton";
+  margin-bottom: 8px;
+}
+.confirm-modal__copy {
+  color: var(--muted);
+}
+.confirm-modal__body {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.confirm-modal__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--mist);
+}
+.confirm-modal__row span {
+  color: var(--muted);
+}
+.confirm-modal__row b,
+.confirm-modal__total b {
+  text-align: right;
+  font-weight: 700;
+}
+.confirm-modal__row--service b {
+  color: var(--solar);
+}
+.confirm-modal__total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  font: 600 1rem "Inter";
+}
+.confirm-modal__total b {
+  font: 400 1.8rem "Anton";
+  color: var(--field-d);
+}
+.confirm-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 
 /* ============================================================
    TOAST + FOOTER

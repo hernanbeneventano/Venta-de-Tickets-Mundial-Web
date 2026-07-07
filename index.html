@@ -185,8 +185,8 @@
           <div class="summary__row"><span>Método de pago</span><b id="sumPayment">Tarjeta de Crédito</b></div>
           <div class="summary__row summary__row--service"><span>Cargo de servicio</span><b id="sumFee">$0</b></div>
           <div class="summary__total"><span>Total</span><b id="sumTotal">$0</b></div>
-          <button class="btn btn--field summary__cta" id="buyConfirm">Confirmar compra</button>
-          <p class="summary__note">Precios en USD. Demostración sin pago real.</p>
+          <button class="btn btn--field summary__cta" id="buyConfirm">Revisar compra</button>
+          <p class="summary__note">Revisá los datos antes de confirmar la compra.</p>
         </aside>
       </div>
     </section>
@@ -221,6 +221,32 @@
     <span>Copa 26 · Sistema de entradas</span>
     <span class="muted">Demostración de frontend · datos de ejemplo</span>
   </footer>
+
+  <!-- Modal de confirmación -->
+  <div class="confirm-modal" id="confirmModal" hidden>
+    <div class="confirm-modal__backdrop" data-close-modal="true"></div>
+    <div class="confirm-modal__card" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
+      <button class="confirm-modal__close" id="confirmModalClose" type="button" aria-label="Cerrar">×</button>
+      <div class="confirm-modal__header">
+        <span class="eyebrow">Confirmación</span>
+        <h3 class="confirm-modal__title" id="confirmModalTitle">Confirmá tu compra</h3>
+        <p class="confirm-modal__copy">Revisá los datos de tu compra antes de finalizar.</p>
+      </div>
+      <div class="confirm-modal__body">
+        <div class="confirm-modal__row"><span>Partido</span><b id="confirmModalMatch">—</b></div>
+        <div class="confirm-modal__row"><span>Fecha</span><b id="confirmModalDate">—</b></div>
+        <div class="confirm-modal__row"><span>Categoría</span><b id="confirmModalCategory">—</b></div>
+        <div class="confirm-modal__row"><span>Cantidad</span><b id="confirmModalQty">—</b></div>
+        <div class="confirm-modal__row"><span>Método de pago</span><b id="confirmModalPayment">—</b></div>
+        <div class="confirm-modal__row confirm-modal__row--service"><span>Cargo de servicio</span><b id="confirmModalFee">$0</b></div>
+        <div class="confirm-modal__total"><span>Total</span><b id="confirmModalTotal">$0</b></div>
+      </div>
+      <div class="confirm-modal__actions">
+        <button class="btn btn--ghost" id="confirmModalCancel" type="button">Cancelar</button>
+        <button class="btn btn--field" id="confirmModalConfirm" type="button">Confirmar compra</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Aviso flotante -->
   <div class="toast" id="toast" hidden></div>

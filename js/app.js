@@ -16,10 +16,14 @@ let selectedGroups = new Set();
 let selectedCities = new Set();
 let advancedFiltersOpen = false;
 let matchFiltersInitialized = false;
+let visibleMatchCount = 12;
+const MATCH_BATCH_SIZE = 8;
+let resetMatchPaginationFlag = true;
 const API_BASE_URL = (window.API_BASE_URL || "https://mundialapi-zbsj.onrender.com/api").replace(/\/$/, "");
 let currentUser = null;
 let userId = "guest";
 let authStateResolved = false;
+let pendingPurchase = null;
 const firebaseConfig = {
   apiKey: "AIzaSyAy0gCGtzPxw5FsmYCSS2NgGFHzAZTf4Yw",
   authDomain: "app-venta-de-tickets-mundial.firebaseapp.com",
@@ -86,7 +90,7 @@ function setupNavigationHooks() {
 }
 
 setupNavigationHooks();
-
+  setupMatchPagination();
 // ---------- Atajos ----------
 const $  = (sel, ctx = document) => ctx.querySelector(sel);
 const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
@@ -119,6 +123,16 @@ function labelForStatus(status) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function formatearGrupo(grupo) {
+  if (grupo === undefined || grupo === null || grupo === "") return "";
+  const texto = String(grupo).trim();
+  if (!texto) return "";
+  if (/^[A-Za-z]$/.test(texto)) {
+    return `Grupo ${texto.toUpperCase()}`;
+  }
+  return texto;
+}
+
 function precioDesde(){ return Math.min(...CATEGORIAS.map((c) => c.precio)); }
 
 function logoutCurrentUser() {
@@ -139,8 +153,19 @@ function logoutCurrentUser() {
 }
 
 async function apiFetch(path, options = {}) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+
+  if (auth.currentUser) {
+    try {
+      const token = await auth.currentUser.getIdToken();
+      headers["Authorization"] = `Bearer ${token}`;
+    } catch (error) {
+      console.warn("Error al obtener el token de Firebase:", error);
+    }
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    headers,
     ...options,
   });
 
@@ -334,7 +359,7 @@ function ticketHTML(m, { cat, asiento, codigo } = {}) {
       <div class="ticket-stub__match">${m.local} — ${m.visita}</div>
       <div class="ticket-stub__grid">
         <div><div class="k">Fecha</div><div class="v">${f.dia} ${f.mes} · ${m.hora}</div></div>
-        <div><div class="k">Grupo</div><div class="v">Grupo ${m.grupo}</div></div>
+        <div><div class="k">Etapa</div><div class="v">${formatearGrupo(m.grupo)}</div></div>
         <div><div class="k">Estadio</div><div class="v">${m.estadio}</div></div>
         <div><div class="k">${cat ? "Tribuna" : "Ciudad"}</div><div class="v">${cat ? cat.nombre : m.ciudad}</div></div>
       </div>
@@ -342,7 +367,7 @@ function ticketHTML(m, { cat, asiento, codigo } = {}) {
     <div class="ticket-stub__tear">
       ${qrSVG()}
       <div class="ticket-stub__seat">
-        ${asiento ? `<b>${asiento}</b>ASIENTO` : `<b>${m.grupo}</b>GRUPO`}
+        ${asiento ? `<b>${asiento}</b>ASIENTO` : `<b>${formatearGrupo(m.grupo)}</b>`}
         ${codigo ? `<div style="margin-top:6px">${codigo}</div>` : ""}
       </div>
     </div>
@@ -392,25 +417,49 @@ function renderHero() {
   }
 }
 
+function resetMatchPagination() {
+  visibleMatchCount = 12;
+  resetMatchPaginationFlag = true;
+}
+
+function loadMoreMatchesIfNeeded() {
+  const lista = PARTIDOS.filter(filterMatch);
+  if (visibleMatchCount >= lista.length) return;
+
+  const nearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 280;
+  if (!nearBottom) return;
+
+  visibleMatchCount = Math.min(visibleMatchCount + MATCH_BATCH_SIZE, lista.length);
+  renderMatches();
+}
+
 function renderChips() {
   const grupos = ["TODOS", ...new Set(PARTIDOS.map((m) => m.grupo))];
   $("#grupoChips").innerHTML = grupos
-    .map((g) => `<button class="chip ${g === filtroGrupo ? "is-active" : ""}" data-grupo="${g}">${g === "TODOS" ? "Todos" : "Grupo " + g}</button>`)
+    .map((g) => `<button class="chip ${g === filtroGrupo ? "is-active" : ""}" data-grupo="${g}">${g === "TODOS" ? "Todos" : formatearGrupo(g)}</button>`)
     .join("");
   $$("#grupoChips .chip").forEach((c) =>
-    c.addEventListener("click", () => { filtroGrupo = c.dataset.grupo; renderChips(); renderMatches(); })
+    c.addEventListener("click", () => { filtroGrupo = c.dataset.grupo; resetMatchPagination(); renderChips(); renderMatches(); })
   );
 }
 
 function renderMatches() {
   const lista = PARTIDOS.filter(filterMatch);
-  $("#matchGrid").innerHTML = lista.map((m) => {
+  if (resetMatchPaginationFlag) {
+    visibleMatchCount = Math.min(12, lista.length);
+    resetMatchPaginationFlag = false;
+  } else if (visibleMatchCount > lista.length) {
+    visibleMatchCount = lista.length;
+  }
+
+  const visibleList = lista.slice(0, visibleMatchCount);
+  $("#matchGrid").innerHTML = visibleList.map((m) => {
     const f = fecha(m.fecha);
     const isFinalizado = m.estado === "finalizado";
     return `
     <article class="card">
       <div class="card__top">
-        <span class="tag ${isFinalizado ? "tag--finalizado" : ""}" style="${isFinalizado ? "background: var(--mist); color: var(--muted);" : ""}">${isFinalizado ? "Finalizado" : "Grupo " + m.grupo}</span>
+        <span class="tag ${isFinalizado ? "tag--finalizado" : ""}" style="${isFinalizado ? "background: var(--mist); color: var(--muted);" : ""}">${isFinalizado ? "Finalizado" : formatearGrupo(m.grupo)}</span>
         <span class="card__date">${f.dia} ${f.mes.toUpperCase()} · ${m.hora}</span>
       </div>
       <div class="card__teams">
@@ -449,6 +498,12 @@ function renderMatches() {
   $$("#matchGrid [data-buy]").forEach((b) =>
     b.addEventListener("click", () => abrirCompra(b.dataset.buy))
   );
+}
+
+function setupMatchPagination() {
+  if (window.__matchPaginationBound) return;
+  window.addEventListener("scroll", loadMoreMatchesIfNeeded, { passive: true });
+  window.__matchPaginationBound = true;
 }
 
 // ============================================================
@@ -529,6 +584,7 @@ function renderAdvancedFilters() {
       } else {
         set.delete(value);
       }
+      resetMatchPagination();
       renderMatches();
     });
   });
@@ -551,6 +607,7 @@ function clearMatchFilters() {
   searchQuery = "";
   filtroGrupo = "TODOS";
   showFinished = true;
+  resetMatchPagination();
 
   const searchInput = $("#matchSearch");
   const finishedToggle = $("#showFinished");
@@ -575,6 +632,7 @@ function attachMatchFilters() {
     searchInput.value = searchQuery;
     searchInput.addEventListener("input", (event) => {
       searchQuery = event.target.value.trim();
+      resetMatchPagination();
       renderMatches();
     });
   }
@@ -583,6 +641,7 @@ function attachMatchFilters() {
     finishedToggle.checked = showFinished;
     finishedToggle.addEventListener("change", (event) => {
       showFinished = event.target.checked;
+      resetMatchPagination();
       renderMatches();
     });
   }
@@ -828,56 +887,125 @@ if (IS_MAIN_PAGE) {
   installPaymentListeners();
 }
 
+function openPurchaseConfirmation() {
+  if (!currentUser) {
+    toast("Necesitás iniciar sesión para confirmar una compra.");
+    window.location.href = "auth.html";
+    return;
+  }
+
+  clearPaymentError();
+  if (!validatePayment()) {
+    return;
+  }
+
+  const m = getMatch(compra.matchId);
+  const c = getCat(compra.catId);
+  if (!m || !c) {
+    toast("Seleccioná un partido y una categoría válidos.");
+    return;
+  }
+
+  if (!m || m.estado === "finalizado") {
+    toast("No se puede comprar un partido que ya finalizó.");
+    return;
+  }
+
+  const payment = buildPaymentPayload();
+  const subtotal = c.precio * compra.qty;
+  const fee = CARGO_SERVICIO * compra.qty;
+  const total = subtotal + fee;
+
+  pendingPurchase = {
+    match: m,
+    category: c,
+    qty: compra.qty,
+    payment,
+    subtotal,
+    fee,
+    total,
+  };
+
+  $("#confirmModalMatch").textContent = `${m.local} vs ${m.visita}`;
+  $("#confirmModalDate").textContent = `${fecha(m.fecha).dia} ${fecha(m.fecha).mes.toUpperCase()} · ${m.hora}`;
+  $("#confirmModalCategory").textContent = c.nombre;
+  $("#confirmModalQty").textContent = `${compra.qty} entrada${compra.qty > 1 ? "s" : ""}`;
+  $("#confirmModalPayment").textContent = payment.metodoPago;
+  $("#confirmModalFee").textContent = money(fee);
+  $("#confirmModalTotal").textContent = money(total);
+  $("#confirmModal").hidden = false;
+  document.body.classList.add("is-modal-open");
+}
+
+function closePurchaseConfirmation() {
+  $("#confirmModal").hidden = true;
+  document.body.classList.remove("is-modal-open");
+  pendingPurchase = null;
+}
+
+async function submitPurchase() {
+  if (!pendingPurchase) return;
+
+  const { match, category, qty, payment, total } = pendingPurchase;
+
+  try {
+    const payload = {
+      userId,
+      partidoId: match.id,
+      equipo1: match.local,
+      equipo2: match.visita,
+      cantidad: qty,
+      total,
+      metodoPago: payment.metodoPago,
+      fechaCompra: Date.now(),
+      pago_titular: payment.pago_titular,
+      pago_tarjeta_mascara: payment.pago_tarjeta_mascara,
+      pago_cvu_alias: payment.pago_cvu_alias,
+    };
+
+    await apiFetch("/compras", { method: "POST", body: JSON.stringify(payload) });
+    await cargarMisEntradasDesdeApi();
+    closePurchaseConfirmation();
+    toast(`¡Compra confirmada! Registramos <b>${qty}</b> entrada${qty > 1 ? "s" : ""} para ${match.local} vs ${match.visita}.`);
+    compra.qty = 1;
+    renderResumen();
+    irA("entradas");
+  } catch (error) {
+    closePurchaseConfirmation();
+    toast(`No se pudo registrar la compra: ${error.message}`);
+  }
+}
+
 // Confirmar compra
 const buyConfirm = $("#buyConfirm");
 if (buyConfirm) {
-  buyConfirm.addEventListener("click", async () => {
-    if (!currentUser) {
-      toast("Necesitás iniciar sesión para confirmar una compra.");
-      window.location.href = "auth.html";
-      return;
-    }
-
-    clearPaymentError();
-    if (!validatePayment()) {
-      return;
-    }
-
-    const m = getMatch(compra.matchId);
-    const c = getCat(compra.catId);
-    const payment = buildPaymentPayload();
-
-    try {
-      if (!m || m.estado === "finalizado") {
-        toast("No se puede comprar un partido que ya finalizó.");
-        return;
-      }
-
-      const payload = {
-        userId,
-        partidoId: m.id,
-        equipo1: m.local,
-        equipo2: m.visita,
-        cantidad: compra.qty,
-        total: (c.precio + CARGO_SERVICIO) * compra.qty,
-        metodoPago: payment.metodoPago,
-        fechaCompra: Date.now(),
-        pago_titular: payment.pago_titular,
-        pago_tarjeta_mascara: payment.pago_tarjeta_mascara,
-        pago_cvu_alias: payment.pago_cvu_alias,
-      };
-
-      await apiFetch("/compras", { method: "POST", body: JSON.stringify(payload) });
-      await cargarMisEntradasDesdeApi();
-      toast(`¡Listo! Registramos <b>${compra.qty}</b> entrada${compra.qty > 1 ? "s" : ""} en la API.`);
-      compra.qty = 1;
-      renderResumen();
-      irA("entradas");
-    } catch (error) {
-      toast(`No se pudo registrar la compra: ${error.message}`);
-    }
-  });
+  buyConfirm.addEventListener("click", openPurchaseConfirmation);
 }
+
+const confirmModalClose = $("#confirmModalClose");
+if (confirmModalClose) {
+  confirmModalClose.addEventListener("click", closePurchaseConfirmation);
+}
+
+const confirmModalCancel = $("#confirmModalCancel");
+if (confirmModalCancel) {
+  confirmModalCancel.addEventListener("click", closePurchaseConfirmation);
+}
+
+const confirmModalConfirm = $("#confirmModalConfirm");
+if (confirmModalConfirm) {
+  confirmModalConfirm.addEventListener("click", submitPurchase);
+}
+
+$$("[data-close-modal='true']").forEach((el) => {
+  el.addEventListener("click", closePurchaseConfirmation);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closePurchaseConfirmation();
+  }
+});
 
 // ============================================================
 //  VISTA: MIS ENTRADAS
@@ -920,7 +1048,7 @@ function renderAgenda() {
         <div class="slot__match">${m.local} vs ${m.visita}
           <small>📍 ${m.estadio}, ${m.ciudad}</small>
         </div>
-        <span class="slot__grupo">Grupo ${m.grupo}</span>
+        <span class="slot__grupo">${formatearGrupo(m.grupo)}</span>
       </div>`).join("");
     return `
       <div class="day">
