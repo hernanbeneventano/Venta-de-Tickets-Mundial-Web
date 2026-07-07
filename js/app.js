@@ -9,6 +9,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
 
 // ---------- Estado ----------
 let MIS_ENTRADAS = [];          // entradas compradas
+let PARTIDOS_DISPONIBLES = [];   // pool de partidos para el select de compra
 let filtroGrupo = "TODOS";      // filtro de la lista de partidos
 let searchQuery = "";           // búsqueda libre de partidos
 let showFinished = true;         // incluye partidos finalizados en la lista
@@ -111,7 +112,9 @@ function fechaLarga(iso) {
   const f = fecha(iso);
   return `${f.semana} ${f.dia} de ${f.mes}.`;
 }
-function getMatch(id) { return PARTIDOS.find((m) => m.id === id); }
+function getMatch(id) {
+  return PARTIDOS.find((m) => m.id === id) || PARTIDOS_DISPONIBLES.find((m) => m.id === id);
+}
 function getCat(id)   { return CATEGORIAS.find((c) => c.id === id); }
 
 function getUniqueSorted(values) {
@@ -234,13 +237,15 @@ function mapCategoriasDesdePartidos() {
 
 function mapCompraApiToEntrada(compra) {
   const match = getMatch(compra.partidoId) || {
-    local: "Partido",
-    visita: "",
-    fecha: "",
-    hora: "",
-    estadio: "",
-    ciudad: "",
-    grupo: "",
+    local: compra.equipo1 || "Partido",
+    visita: compra.equipo2 || "",
+    localFlag: compra.flag1 || "",
+    visitaFlag: compra.flag2 || "",
+    fecha: compra.fecha || "",
+    hora: compra.hora || "",
+    estadio: compra.estadio || "",
+    ciudad: compra.ciudad || "",
+    grupo: compra.grupo || "",
   };
   const precioUnitario = Number(compra.total) / Math.max(1, Number(compra.cantidad) || 1);
   const nombreCat = precioUnitario >= 250 ? "Tribuna premium" : precioUnitario >= 180 ? "Tribuna media" : "General";
@@ -295,6 +300,14 @@ async function cargarDatosDesdeApi(append = false) {
 
     if (nuevosPartidos.length < (PARTIDOS_PAGE_SIZE || 12)) {
       isPartidosEndReached = true;
+    }
+
+    // Mantener un pool de partidos disponibles para comprar (independiente de filtros de búsqueda)
+    if (!append) {
+      const dataDisp = await apiFetch("/partidos?showFinished=false&pageSize=100");
+      if (Array.isArray(dataDisp)) {
+        PARTIDOS_DISPONIBLES = dataDisp.map(mapPartidoApi);
+      }
     }
 
     if (PARTIDOS.length > 0) {
@@ -581,7 +594,9 @@ function abrirCompra(matchId) {
 
 function renderMatchSelect() {
   const select = $("#buyMatch");
-  const availableMatches = PARTIDOS.filter((m) => m.estado !== "finalizado");
+  const availableMatches = PARTIDOS_DISPONIBLES.length > 0
+    ? PARTIDOS_DISPONIBLES
+    : PARTIDOS.filter((m) => m.estado !== "finalizado");
 
   if (availableMatches.length === 0) {
     select.innerHTML = `<option value="">No hay partidos disponibles</option>`;
@@ -1012,6 +1027,8 @@ async function submitPurchase() {
       pago_cvu_alias: payment.pago_cvu_alias,
     };
 
+    console.debug("Enviando compra a la API:", payload);
+
     await apiFetch("/compras", { method: "POST", body: JSON.stringify(payload) });
     await cargarMisEntradasDesdeApi();
     closePurchaseConfirmation();
@@ -1020,6 +1037,7 @@ async function submitPurchase() {
     renderResumen();
     irA("entradas");
   } catch (error) {
+    console.error("Error en submitPurchase:", error);
     closePurchaseConfirmation();
     toast(`No se pudo registrar la compra: ${error.message}`);
   }
