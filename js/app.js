@@ -271,6 +271,15 @@ async function cargarDatosDesdeApi(append = false) {
     if (filtroGrupo && filtroGrupo !== "TODOS") {
       params.append("grupo", filtroGrupo);
     }
+
+    // Filtros avanzados: enviamos los grupos y ciudades seleccionados como parámetros separados
+    if (selectedGroups.size > 0) {
+      selectedGroups.forEach(g => params.append("grupo", g));
+    }
+    if (selectedCities.size > 0) {
+      selectedCities.forEach(c => params.append("equipo", c)); // Usamos el campo equipo para buscar ciudades también
+    }
+
     if (searchQuery) {
       params.append("equipo", searchQuery);
     }
@@ -495,7 +504,7 @@ function renderMatches() {
   }
   if (lista.length === 0) {
     $("#matchGrid").innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px;">
-      <div class="muted">No se encontraron partidos.</div>
+      <div class="muted">No se encontraron partidos para los filtros seleccionados.</div>
     </div>`;
     return;
   }
@@ -631,7 +640,7 @@ function renderAdvancedFilters() {
         set.delete(value);
       }
       resetMatchPagination();
-      renderMatches();
+      cargarDatosDesdeApi();
     });
   });
 }
@@ -708,16 +717,7 @@ function attachMatchFilters() {
 }
 
 function filterMatch(m) {
-  if (!showFinished && m.estado === "finalizado") return false;
-  if (filtroGrupo !== "TODOS" && m.grupo !== filtroGrupo) return false;
-  if (selectedGroups.size > 0 && !selectedGroups.has(m.grupo)) return false;
-  if (selectedCities.size > 0 && !selectedCities.has(m.ciudad)) return false;
-  if (!searchQuery) return true;
-
-  const term = searchQuery.toLowerCase();
-  return [m.local, m.visita, m.estadio, m.grupo, m.resultado, m.ciudad]
-    .filter(Boolean)
-    .some((value) => value.toString().toLowerCase().includes(term));
+  return true; // El filtrado ahora ocurre en la API
 }
 
 function renderCats() {
