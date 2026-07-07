@@ -18,6 +18,10 @@ let advancedFiltersOpen = false;
 let matchFiltersInitialized = false;
 let visibleMatchCount = 12;
 const MATCH_BATCH_SIZE = 8;
+const PARTIDOS_PAGE_SIZE = 12;
+let partidosCurrentPage = 1;
+let isPartidosEndReached = false;
+let isLoadingPartidos = false;
 let resetMatchPaginationFlag = true;
 const API_BASE_URL = (window.API_BASE_URL || "https://mundialapi-zbsj.onrender.com/api").replace(/\/$/, "");
 let currentUser = null;
@@ -249,26 +253,59 @@ function mapCompraApiToEntrada(compra) {
   };
 }
 
-async function cargarDatosDesdeApi() {
+async function cargarDatosDesdeApi(append = false) {
+  if (isLoadingPartidos || (isPartidosEndReached && append)) return;
+  isLoadingPartidos = true;
+
   try {
-    const partidosApi = await apiFetch("/partidos");
-    const partidos = Array.isArray(partidosApi) ? partidosApi : [];
-    if (partidos.length > 0) {
-      PARTIDOS.splice(0, PARTIDOS.length, ...partidos.map(mapPartidoApi));
-      CATEGORIAS.splice(0, CATEGORIAS.length, ...mapCategoriasDesdePartidos());
+    if (!append) {
+      partidosCurrentPage = 1;
+      isPartidosEndReached = false;
+    }
+
+    const params = new URLSearchParams();
+    params.append("page", partidosCurrentPage);
+    params.append("pageSize", PARTIDOS_PAGE_SIZE || 12);
+    params.append("showFinished", showFinished);
+
+    if (filtroGrupo && filtroGrupo !== "TODOS") {
+      params.append("grupo", filtroGrupo);
+    }
+    if (searchQuery) {
+      params.append("equipo", searchQuery);
+    }
+
+    const partidosApi = await apiFetch(`/partidos?${params.toString()}`);
+    const nuevosPartidos = Array.isArray(partidosApi) ? partidosApi.map(mapPartidoApi) : [];
+
+    if (append) {
+      PARTIDOS.push(...nuevosPartidos);
     } else {
-      console.warn("La API retornó una lista vacía de partidos. Se mantendrán los datos locales de respaldo.");
+      PARTIDOS.splice(0, PARTIDOS.length, ...nuevosPartidos);
     }
 
-    if (!PARTIDOS.some((m) => m.id === compra.matchId) && PARTIDOS.length) {
-      compra.matchId = PARTIDOS[0].id;
+    if (nuevosPartidos.length < (PARTIDOS_PAGE_SIZE || 12)) {
+      isPartidosEndReached = true;
     }
 
+    if (PARTIDOS.length > 0) {
+      CATEGORIAS.splice(0, CATEGORIAS.length, ...mapCategoriasDesdePartidos());
+      if (!PARTIDOS.some((m) => m.id === compra.matchId)) {
+        compra.matchId = PARTIDOS[0].id;
+      }
+    }
+
+    partidosCurrentPage++;
     renderApp();
-    await cargarMisEntradasDesdeApi();
+
+    if (!append) {
+      await cargarMisEntradasDesdeApi();
+    }
   } catch (error) {
     console.error("No se pudo conectar con la API:", error);
-    toast("No se pudo conectar con la API. Se muestran los datos locales.");
+    toast("Error al cargar datos desde la API.");
+  } finally {
+    isLoadingPartidos = false;
   }
 }
 
@@ -418,19 +455,19 @@ function renderHero() {
 }
 
 function resetMatchPagination() {
-  visibleMatchCount = 12;
+  PARTIDOS.splice(0, PARTIDOS.length);
+  partidosCurrentPage = 1;
+  isPartidosEndReached = false;
   resetMatchPaginationFlag = true;
 }
 
 function loadMoreMatchesIfNeeded() {
-  const lista = PARTIDOS.filter(filterMatch);
-  if (visibleMatchCount >= lista.length) return;
+  if (isPartidosEndReached || isLoadingPartidos) return;
 
-  const nearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 280;
+  const nearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 400;
   if (!nearBottom) return;
 
-  visibleMatchCount = Math.min(visibleMatchCount + MATCH_BATCH_SIZE, lista.length);
-  renderMatches();
+  cargarDatosDesdeApi(true);
 }
 
 function renderChips() {
@@ -439,21 +476,30 @@ function renderChips() {
     .map((g) => `<button class="chip ${g === filtroGrupo ? "is-active" : ""}" data-grupo="${g}">${g === "TODOS" ? "Todos" : formatearGrupo(g)}</button>`)
     .join("");
   $$("#grupoChips .chip").forEach((c) =>
-    c.addEventListener("click", () => { filtroGrupo = c.dataset.grupo; resetMatchPagination(); renderChips(); renderMatches(); })
+    c.addEventListener("click", () => {
+      filtroGrupo = c.dataset.grupo;
+      resetMatchPagination();
+      renderChips();
+      cargarDatosDesdeApi();
+    })
   );
 }
 
 function renderMatches() {
-  const lista = PARTIDOS.filter(filterMatch);
-  if (resetMatchPaginationFlag) {
-    visibleMatchCount = Math.min(12, lista.length);
-    resetMatchPaginationFlag = false;
-  } else if (visibleMatchCount > lista.length) {
-    visibleMatchCount = lista.length;
+  const lista = PARTIDOS;
+  if (lista.length === 0 && isLoadingPartidos) {
+    $("#matchGrid").innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px;">
+      <div class="muted">Cargando partidos...</div>
+    </div>`;
+    return;
   }
-
-  const visibleList = lista.slice(0, visibleMatchCount);
-  $("#matchGrid").innerHTML = visibleList.map((m) => {
+  if (lista.length === 0) {
+    $("#matchGrid").innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px;">
+      <div class="muted">No se encontraron partidos.</div>
+    </div>`;
+    return;
+  }
+  $("#matchGrid").innerHTML = lista.map((m) => {
     const f = fecha(m.fecha);
     const isFinalizado = m.estado === "finalizado";
     return `
@@ -633,7 +679,7 @@ function attachMatchFilters() {
     searchInput.addEventListener("input", (event) => {
       searchQuery = event.target.value.trim();
       resetMatchPagination();
-      renderMatches();
+      cargarDatosDesdeApi();
     });
   }
 
@@ -642,7 +688,7 @@ function attachMatchFilters() {
     finishedToggle.addEventListener("change", (event) => {
       showFinished = event.target.checked;
       resetMatchPagination();
-      renderMatches();
+      cargarDatosDesdeApi();
     });
   }
 
