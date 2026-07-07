@@ -1457,9 +1457,14 @@ async function startQrLogin() {
 
   if (!btnShow || !panel || !qrCanvas) return;
 
+  if (typeof QRCode === "undefined") {
+    toast("Error: Librería QR no cargada. Reintentá en unos segundos.");
+    return;
+  }
+
+  qrCanvas.innerHTML = "";
   btnShow.hidden = true;
   panel.hidden = false;
-  qrCanvas.innerHTML = "";
 
   // ID de sesión único para este intento de login
   const sessionId = "web_" + Math.random().toString(36).substring(2, 15);
@@ -1472,7 +1477,7 @@ async function startQrLogin() {
       createdAt: serverTimestamp()
     });
 
-    // 2. Generar el código QR (usa la librería qrcode.js)
+    // 2. Generar el código QR
     new QRCode(qrCanvas, {
       text: sessionId,
       width: 140,
@@ -1504,8 +1509,8 @@ async function startQrLogin() {
       }
     });
   } catch (error) {
-    console.error("Error al iniciar QR Login:", error);
-    toast("No se pudo generar el código QR.");
+    console.error("Error al iniciar QR Login (Firestore):", error);
+    toast("No se pudo conectar con el servicio de QR.");
     stopQrLogin();
   }
 }

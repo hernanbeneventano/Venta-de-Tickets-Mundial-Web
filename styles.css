@@ -416,6 +416,8 @@ main { max-width: var(--maxw); margin: 0 auto; padding: clamp(24px, 5vw, 56px) c
   margin-top: -10px; padding: 24px; background: #fff; border: 1px solid var(--mist); border-radius: 20px;
   display: flex; flex-direction: column; align-items: center; gap: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.05);
 }
+
+.qr-auth__panel[hidden] { display: none !important; }
 .qr-auth__canvas { padding: 12px; background: #fff; border-radius: 8px; border: 1px solid var(--mist); min-height: 128px; min-width: 128px; }
 .qr-auth__header { margin-bottom: 4px; }
 .qr-auth__title { font: 700 1.1rem "Inter"; color: var(--ink); margin-bottom: 6px; }
@@ -772,7 +774,8 @@ main { max-width: var(--maxw); margin: 0 auto; padding: clamp(24px, 5vw, 56px) c
   .slot__grupo { grid-column: 2; justify-self: start; }
 }
 
-/* Accesibilidad */
+/* Accesibilidad y utilidades */
+[hidden] { display: none !important; }
 :focus-visible { outline: 2px solid var(--field); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto; }
