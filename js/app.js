@@ -1227,6 +1227,7 @@ function renderAuthView() {
     if (logged) logged.hidden = true;
     if (loginForm) loginForm.classList.add("is-active");
     if (registerForm) registerForm.classList.remove("is-active");
+    stopQrLogin(); // Nos aseguramos de ocultar el panel QR si no estamos logueados y volvemos a la vista auth
   }
 
   renderAccountButton();
@@ -1458,13 +1459,14 @@ async function startQrLogin() {
   if (!btnShow || !panel || !qrCanvas) return;
 
   if (typeof QRCode === "undefined") {
-    toast("Error: Librería QR no cargada. Reintentá en unos segundos.");
+    toast("Error: La librería QR no se cargó correctamente.");
     return;
   }
 
   qrCanvas.innerHTML = "";
   btnShow.hidden = true;
   panel.hidden = false;
+  panel.classList.remove("hidden"); // Por si acaso usamos clase en lugar de atributo
 
   // ID de sesión único para este intento de login
   const sessionId = "web_" + Math.random().toString(36).substring(2, 15);
@@ -1510,7 +1512,7 @@ async function startQrLogin() {
     });
   } catch (error) {
     console.error("Error al iniciar QR Login (Firestore):", error);
-    toast("No se pudo conectar con el servicio de QR.");
+    toast("Error: No se pudo conectar con Firestore.");
     stopQrLogin();
   }
 }
@@ -1523,7 +1525,10 @@ function stopQrLogin() {
   const btnShow = $("#btnShowQr");
   const panel = $("#qrPanel");
   if (btnShow) btnShow.hidden = false;
-  if (panel) panel.hidden = true;
+  if (panel) {
+    panel.hidden = true;
+    panel.classList.add("hidden");
+  }
 }
 
 const btnShowQr = $("#btnShowQr");
