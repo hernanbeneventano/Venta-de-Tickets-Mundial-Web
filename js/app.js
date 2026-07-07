@@ -5,7 +5,8 @@
 // ============================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile, onAuthStateChanged, fetchSignInMethodsForEmail, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithCustomToken, signOut, updateProfile, onAuthStateChanged, fetchSignInMethodsForEmail, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, onSnapshot, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
 
 // ---------- Estado ----------
 let MIS_ENTRADAS = [];          // entradas compradas
@@ -40,6 +41,7 @@ const firebaseConfig = {
 };
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
+const db = getFirestore(firebaseApp);
 console.debug("Firebase config:", firebaseApp.options);
 
 async function initializeAuthPersistence() {
@@ -1441,6 +1443,92 @@ if (authTabs.length) {
       if (registerForm) registerForm.classList.toggle("is-active", tab.dataset.authTab === "register");
     });
   });
+}
+
+// ============================================================
+//  QR LOGIN (LOGIN CON CELULAR)
+// ============================================================
+let qrUnsubscribe = null;
+
+async function startQrLogin() {
+  const btnShow = $("#btnShowQr");
+  const panel = $("#qrPanel");
+  const qrCanvas = $("#qrCode");
+
+  if (!btnShow || !panel || !qrCanvas) return;
+
+  btnShow.hidden = true;
+  panel.hidden = false;
+  qrCanvas.innerHTML = "";
+
+  // ID de sesión único para este intento de login
+  const sessionId = "web_" + Math.random().toString(36).substring(2, 15);
+
+  try {
+    // 1. Crear documento de sesión en Firestore
+    const sessionRef = doc(db, "qr_logins", sessionId);
+    await setDoc(sessionRef, {
+      status: "esperando",
+      createdAt: serverTimestamp()
+    });
+
+    // 2. Generar el código QR (usa la librería qrcode.js)
+    new QRCode(qrCanvas, {
+      text: sessionId,
+      width: 140,
+      height: 140,
+      colorDark: "#0c1324",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H
+    });
+
+    // 3. Escuchar cambios en tiempo real
+    qrUnsubscribe = onSnapshot(sessionRef, async (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+
+      if (data.status === "autorizado" && data.token) {
+        if (qrUnsubscribe) qrUnsubscribe();
+        qrUnsubscribe = null;
+
+        toast("¡Autorizado! Sincronizando cuenta...");
+
+        try {
+          await signInWithCustomToken(auth, data.token);
+          await deleteDoc(sessionRef); // Limpieza
+        } catch (error) {
+          console.error("Error al ingresar con custom token:", error);
+          toast("Error de sincronización. Intentá de nuevo.");
+          stopQrLogin();
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error al iniciar QR Login:", error);
+    toast("No se pudo generar el código QR.");
+    stopQrLogin();
+  }
+}
+
+function stopQrLogin() {
+  if (qrUnsubscribe) {
+    qrUnsubscribe();
+    qrUnsubscribe = null;
+  }
+  const btnShow = $("#btnShowQr");
+  const panel = $("#qrPanel");
+  if (btnShow) btnShow.hidden = false;
+  if (panel) panel.hidden = true;
+}
+
+const btnShowQr = $("#btnShowQr");
+if (btnShowQr) {
+  btnShowQr.addEventListener("click", startQrLogin);
+}
+
+const btnCancelQr = $("#btnCancelQr");
+if (btnCancelQr) {
+  btnCancelQr.addEventListener("click", stopQrLogin);
 }
 
 renderApp();

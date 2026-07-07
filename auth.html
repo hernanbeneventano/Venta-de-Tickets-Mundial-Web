@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body id="authPage">
   <header class="topbar">
@@ -61,6 +62,26 @@
               </label>
               <button class="btn btn--field" type="submit">Crear cuenta</button>
             </form>
+
+            <div class="qr-auth" id="qrAuthSection">
+              <div class="qr-auth__divider"><span>o también</span></div>
+              <button class="btn btn--qr" id="btnShowQr" type="button">
+                <span class="qr-auth__icon">📱</span> Iniciar sesión con QR
+              </button>
+
+              <div class="qr-auth__panel" id="qrPanel" hidden>
+                <div class="qr-auth__header">
+                  <h4 class="qr-auth__title">Escaneá para ingresar</h4>
+                  <p class="qr-auth__copy">Abrí la App Mundial en tu celular y escaneá este código para iniciar sesión automáticamente.</p>
+                </div>
+                <div class="qr-auth__canvas" id="qrCode"></div>
+                <div class="qr-auth__status">
+                  <span class="loader-dots"><span></span><span></span><span></span></span>
+                  Esperando escaneo...
+                </div>
+                <button class="btn btn--ghost btn--sm" id="btnCancelQr" type="button">Volver al método tradicional</button>
+              </div>
+            </div>
           </div>
 
           <div id="authLoggedIn" class="auth-logged" hidden>
