@@ -310,11 +310,6 @@ async function cargarDatosDesdeApi(append = false) {
         compra.matchId = PARTIDOS[0].id;
       }
     }
-      CATEGORIAS.splice(0, CATEGORIAS.length, ...mapCategoriasDesdePartidos());
-      if (!PARTIDOS.some((m) => m.id === compra.matchId)) {
-        compra.matchId = PARTIDOS[0].id;
-      }
-    }
 
     partidosCurrentPage++;
 
