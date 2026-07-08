@@ -304,15 +304,12 @@ async function cargarDatosDesdeApi(append = false) {
       isPartidosEndReached = true;
     }
 
-    // Mantener un pool de partidos disponibles para comprar (independiente de filtros de búsqueda)
-    if (!append) {
-      const dataDisp = await apiFetch("/partidos?showFinished=false&pageSize=100");
-      if (Array.isArray(dataDisp)) {
-        PARTIDOS_DISPONIBLES = dataDisp.map(mapPartidoApi);
+    if (PARTIDOS.length > 0) {
+      CATEGORIAS.splice(0, CATEGORIAS.length, ...mapCategoriasDesdePartidos());
+      if (!PARTIDOS.some((m) => m.id === compra.matchId)) {
+        compra.matchId = PARTIDOS[0].id;
       }
     }
-
-    if (PARTIDOS.length > 0) {
       CATEGORIAS.splice(0, CATEGORIAS.length, ...mapCategoriasDesdePartidos());
       if (!PARTIDOS.some((m) => m.id === compra.matchId)) {
         compra.matchId = PARTIDOS[0].id;
@@ -612,8 +609,21 @@ function abrirCompra(matchId) {
   irA("comprar");
 }
 
-function renderMatchSelect() {
+async function renderMatchSelect() {
   const select = $("#buyMatch");
+
+  // Si no tenemos partidos para el select, los cargamos una sola vez bajo demanda
+  if (PARTIDOS_DISPONIBLES.length === 0 && !isLoadingPartidos) {
+    try {
+      const dataDisp = await apiFetch("/partidos?showFinished=false&pageSize=100");
+      if (Array.isArray(dataDisp)) {
+        PARTIDOS_DISPONIBLES = dataDisp.map(mapPartidoApi);
+      }
+    } catch (e) {
+      console.warn("No se pudo cargar el pool de compras:", e);
+    }
+  }
+
   const availableMatches = PARTIDOS_DISPONIBLES.length > 0
     ? PARTIDOS_DISPONIBLES
     : PARTIDOS.filter((m) => m.estado !== "finalizado");
